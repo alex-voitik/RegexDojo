@@ -6,12 +6,13 @@ import { datadogRum } from '@datadog/browser-rum';
 import { reactPlugin } from '@datadog/browser-rum-react';
 
 datadogRum.init({
-  applicationId: '9669d947-ee8c-4389-a5e3-1f5479317660',
-  clientToken: 'pub59c398c37bd7924bb3251b51b7478af4',
+  applicationId: import.meta.env.VITE_DD_APPLICATION_ID,
+  clientToken: import.meta.env.VITE_DD_CLIENT_TOKEN,
   site: 'datadoghq.com',
-  service: 'regex-dojo',
-  env: 'prod',
-  version: '1.0.0',
+  service: import.meta.env.VITE_DD_SERVICE || 'react-vercel',
+  env: import.meta.env.VITE_DD_ENV || 'production',
+  version: import.meta.env.VITE_DD_VERSION,
+
   sessionSampleRate: 100,
   sessionReplaySampleRate: 20,
   defaultPrivacyLevel: 'allow',
