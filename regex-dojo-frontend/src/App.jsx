@@ -7,6 +7,7 @@ import {
   XCircle,
   Timer,
   Sparkles,
+  BrainCircuit,
 } from "lucide-react";
 
 
@@ -24,6 +25,18 @@ const DATASETS = {
   character_classes: {
     label: "2. Character Classes",
     data: "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789 !@#$%^&*()_+-=[]{}\\|;:'\",<.>/?`~"
+  },
+  quantifiers: {
+    label: "3. Quantifiers and Repetitions",
+    data: "aaaaa a 1234 aa 1frds453 aaa aaaaa aaaa aaaaa jjjjj"
+  },
+  anchors: {
+    label: "4. Anchors",
+    data: "ERROR 123abc 123 abc 123abc123 abc123 ERROR:abc123 abc123:ERROR abc123 ERROR:abc123:ERROR"
+  },
+  grouping: {
+    label: "5. Grouping",
+    data: "12-30-2022 2022-30-12 cat dog animal pig GET POST PUT DELETE"
   },
   logs: {
     label: "Server Logs",
@@ -54,6 +67,37 @@ TIMEOUT_MS=1500`,
 };
 
 const PATTERNS = [
+  // Character Classes / Basics
+  { name: "Any character", pattern: "[abc]", desc: "Matches one of a, b, or c", datasets: ["literal_characters", "character_classes"] },
+  { name: "Any lowercase character", pattern: "[a-z]", desc: "Matches any lowercase letter", datasets: ["literal_characters", "character_classes"] },
+  { name: "Any digit", pattern: "[0-9]", desc: "Matches any digit", datasets: ["literal_characters", "character_classes"] },
+  { name: "Not a digit", pattern: "[^0-9]", desc: "Matches any character that is not a digit", datasets: ["literal_characters", "character_classes"] },
+  { name: "Any digit (shorthand)", pattern: "\\d", desc: "Matches any digit", datasets: ["literal_characters", "character_classes"] },
+  { name: "Any word character (shorthand)", pattern: "\\w", desc: "Matches any word character, letter, digit, underscore ", datasets: ["literal_characters", "character_classes"] },
+  { name: "Any white space (shorthand)", pattern: "\\s", desc: "Matches any whitespace character", datasets: ["literal_characters", "character_classes"] },
+  { name: "Inverted any digit (shorthand)", pattern: "\\D", desc: "Matches any non-digit character", datasets: ["literal_characters", "character_classes"] },
+  { name: "Inverted any word character (shorthand)", pattern: "\\W", desc: "Matches any non-word character", datasets: ["literal_characters", "character_classes"] },
+  { name: "Inverted any white space (shorthand)", pattern: "\\S", desc: "Matches any non-whitespace character", datasets: ["literal_characters", "character_classes"] },
+
+  // Quantifiers
+  { name: "Zero or more", pattern: "a*", desc: "Matches zero or more occurrences of the preceding element", datasets: ["quantifiers"] },
+  { name: "One or more", pattern: "a+", desc: "Matches one or more occurrences of the preceding element", datasets: ["quantifiers"] },
+  { name: "Zero or one", pattern: "a?", desc: "Matches zero or one occurrence of the preceding element", datasets: ["quantifiers"] },
+  { name: "Exactly n times", pattern: "a{n}", desc: "Matches exactly n occurrences of the preceding element", datasets: ["quantifiers"] },
+  { name: "At least n times", pattern: "a{n,}", desc: "Matches at least n occurrences of the preceding element", datasets: ["quantifiers"] },
+  { name: "Between n and m times", pattern: "a{n,m}", desc: "Matches between n and m occurrences of the preceding element", datasets: ["quantifiers"] },
+  { name: "Three digits", pattern: "\\d{3}", desc: "Matches exactly 3 digits", datasets: ["quantifiers"] },
+  { name: "Short identifiers", pattern: "\\w{2,4}", desc: "Matches between 2 and 5 word characters", datasets: ["quantifiers"] },
+
+  // Anchors
+  { name: "Start of string", pattern: "^ERROR", desc: "Matches 'abc' at the start of the string", datasets: ["anchors"] },
+  { name: "End of string", pattern: "ERROR$", desc: "Matches 'abc' at the end of the string", datasets: ["anchors"] },
+
+  // Grouping
+  { name: "Grouped alternatives", pattern: "(cat|dog)", desc: "Matches 'cat' or 'dog'", datasets: ["grouping"] },
+  { name: "Date format", pattern: "((\\d{4})-(\\d{2})-(\\d{2}))", desc: "Matches YYYY-MM-DD model", datasets: ["grouping"] },
+
+
   // General / Common
   { name: "Email Address", pattern: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", desc: "Matches common email formats", datasets: ["csv", "logs", "kv"] },
   { name: "Phone Number (US)", pattern: "\\(?\\d{3}\\)?[-\\s.]?\\d{3}[-\\s.]?\\d{4}", desc: "Matches (123) 456-7890", datasets: ["csv", "logs", "kv"] },
@@ -67,12 +111,6 @@ const PATTERNS = [
 
   // CSV
   { name: "CSV Field", pattern: "(?:^|,)(\"(?:[^\"]|\"\")*\"|[^,]*)", desc: "Matches complex CSV fields", datasets: ["csv"] },
-
-  // Character Classes / Basics
-  { name: "Digits", pattern: "\\d+", desc: "Matches one or more digits", datasets: ["literal_characters", "character_classes", "logs", "csv", "kv"] },
-  { name: "Words", pattern: "\\w+", desc: "Matches word characters", datasets: ["literal_characters", "character_classes", "logs"] },
-  { name: "Whitespace", pattern: "\\s+", desc: "Matches whitespace", datasets: ["literal_characters", "character_classes"] },
-  { name: "Capitalized Words", pattern: "\\b[A-Z][a-z]*\\b", desc: "Matches Title Case", datasets: ["literal_characters", "character_classes"] },
 ];
 
 
@@ -186,6 +224,10 @@ export default function App() {
   const [liveError, setLiveError] = useState(null);
   const [showPatterns, setShowPatterns] = useState(false);
 
+  const [explanation, setExplanation] = useState("");
+  const [isExplaining, setIsExplaining] = useState(false);
+  const [explainError, setExplainError] = useState(null);
+
 
   const previewRef = useRef(null);
 
@@ -226,6 +268,43 @@ export default function App() {
     setSelectedMatch(-1);
     setAttempts(0);
     setStatus({ kind: "idle", msg: "Reset." });
+  }
+
+  async function explainRegex() {
+    if (!pattern) return;
+    setIsExplaining(true);
+    setExplainError(null);
+    setExplanation("");
+    try {
+      const res = await fetch("http://localhost:3001/explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pattern }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to get explanation");
+      }
+
+      // Stream the response
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        accumulated += chunk;
+        setExplanation(accumulated);
+      }
+    } catch (err) {
+      setExplainError(err.message);
+    } finally {
+      setIsExplaining(false);
+    }
   }
 
   useEffect(() => {
@@ -298,7 +377,7 @@ export default function App() {
               <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Regex Dojo</h1>
             </div>
             <p className="mt-2 text-sm text-slate-600">
-              Glad to be here!
+              Glad to be here, Super Saiyans!
             </p>
           </div>
         </div>
@@ -309,12 +388,22 @@ export default function App() {
             title="Controls"
             subtitle="Dataset, flags, pattern, text"
             right={
-              <button
-                onClick={() => setShowPatterns(true)}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-              >
-                Patterns
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={explainRegex}
+                  disabled={!pattern || isExplaining}
+                  className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 shadow-sm hover:bg-indigo-100 disabled:opacity-50"
+                >
+                  <BrainCircuit size={14} />
+                  {isExplaining ? "Thinking..." : "Explain"}
+                </button>
+                <button
+                  onClick={() => setShowPatterns(true)}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                >
+                  Patterns
+                </button>
+              </div>
             }
           >
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -412,8 +501,36 @@ export default function App() {
               </div>
 
 
+
+              {/* AI Explanation - moved from separate card */}
+              {(explanation || isExplaining || explainError) && (
+                <div className="sm:col-span-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-semibold text-slate-600">AI Explanation (Powered by Gemini)</label>
+                    {explainError ? <Badge tone="bad">Error</Badge> :
+                      isExplaining ? <Badge tone="info">Generating...</Badge> :
+                        <Badge tone="good">Success</Badge>
+                    }
+                  </div>
+                  <div className="prose prose-sm max-w-none text-slate-700 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    {isExplaining ? (
+                      <div className="flex animate-pulse flex-col gap-2">
+                        <div className="h-4 w-3/4 rounded bg-slate-200"></div>
+                        <div className="h-4 w-5/6 rounded bg-slate-200"></div>
+                        <div className="h-4 w-1/2 rounded bg-slate-200"></div>
+                      </div>
+                    ) : explainError ? (
+                      <div className="text-rose-600">{explainError}</div>
+                    ) : (
+                      <div className="whitespace-pre-wrap">{explanation}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
             </div>
           </Card>
+
 
           {/* Output */}
           <Card
@@ -506,45 +623,84 @@ export default function App() {
             </div>
           </Card>
         </div>
+
+        {/* Footer */}
+        <footer className="mt-8 border-t border-slate-200 pt-6 pb-8 text-center">
+          <p className="text-sm text-slate-600">
+            Vibe coded on{" "}
+            <a
+              href="https://antigravity.google/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-indigo-600 hover:text-indigo-700 font-medium"
+            >
+              Google Antigravity
+            </a>
+            {" "}with{" "}
+            <a
+              href="https://react.dev"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-indigo-600 hover:text-indigo-700 font-medium"
+            >
+              React
+            </a>
+            {" "}and powered by{" "}
+            <a
+              href="https://ai.google.dev/gemini-api"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-indigo-600 hover:text-indigo-700 font-medium"
+            >
+              Gemini AI
+            </a>
+
+          </p>
+          <p className="mt-2 text-xs text-slate-500">
+            RegEx Dojo - Practice regex patterns interactively with AI-powered explanations, by Alex Voitik
+          </p>
+        </footer>
       </div>
 
       {/* Modal Overlay */}
-      {showPatterns && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-900">Quick Patterns</h2>
-              <button
-                onClick={() => setShowPatterns(false)}
-                className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-              >
-                <XCircle size={20} />
-              </button>
-            </div>
-            <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-              {PATTERNS
-                .filter(p => datasetKey === "custom" || p.datasets.includes(datasetKey))
-                .map((p, idx) => (
-                  <div key={idx} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-3">
-                    <div>
-                      <div className="text-sm font-medium text-slate-900">{p.name}</div>
-                      <div className="text-xs text-slate-500">{p.desc}</div>
+      {
+        showPatterns && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+            <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-slate-900">Quick Patterns</h2>
+                <button
+                  onClick={() => setShowPatterns(false)}
+                  className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                >
+                  <XCircle size={20} />
+                </button>
+              </div>
+              <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                {PATTERNS
+                  .filter(p => datasetKey === "custom" || p.datasets.includes(datasetKey))
+                  .map((p, idx) => (
+                    <div key={idx} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-3">
+                      <div>
+                        <div className="text-sm font-medium text-slate-900">{p.name}<span className="text-xs text-slate-500"> {p.pattern}</span></div>
+                        <div className="text-xs text-slate-500">{p.desc}</div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setPattern(p.pattern);
+                          setShowPatterns(false);
+                        }}
+                        className="ml-4 shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-600 shadow-sm hover:bg-indigo-50 hover:text-indigo-700"
+                      >
+                        Try it
+                      </button>
                     </div>
-                    <button
-                      onClick={() => {
-                        setPattern(p.pattern);
-                        setShowPatterns(false);
-                      }}
-                      className="ml-4 shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-600 shadow-sm hover:bg-indigo-50 hover:text-indigo-700"
-                    >
-                      Try it
-                    </button>
-                  </div>
-                ))}
+                  ))}
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 }
