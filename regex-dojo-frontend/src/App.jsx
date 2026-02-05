@@ -53,6 +53,28 @@ TIMEOUT_MS=1500`,
   },
 };
 
+const PATTERNS = [
+  // General / Common
+  { name: "Email Address", pattern: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", desc: "Matches common email formats", datasets: ["csv", "logs", "kv"] },
+  { name: "Phone Number (US)", pattern: "\\(?\\d{3}\\)?[-\\s.]?\\d{3}[-\\s.]?\\d{4}", desc: "Matches (123) 456-7890", datasets: ["csv", "logs", "kv"] },
+  { name: "IPv4 Address", pattern: "\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b", desc: "Standard IP address", datasets: ["logs", "kv"] },
+  { name: "Date (YYYY-MM-DD)", pattern: "\\d{4}-\\d{2}-\\d{2}", desc: "ISO 8601 date format", datasets: ["logs", "csv"] },
+
+  // Logs
+  { name: "Timestamp (ISO)", pattern: "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z", desc: "Matches ISO8601 timestamps", datasets: ["logs"] },
+  { name: "Log Level", pattern: "\\b(INFO|WARN|ERROR|DEBUG)\\b", desc: "Common log levels", datasets: ["logs"] },
+  { name: "Key-Value Pair", pattern: "\\w+=\"[^\"]*\"|\\w+=[^\\s]+", desc: "Matches key=value or key=\"val\"", datasets: ["logs", "kv"] },
+
+  // CSV
+  { name: "CSV Field", pattern: "(?:^|,)(\"(?:[^\"]|\"\")*\"|[^,]*)", desc: "Matches complex CSV fields", datasets: ["csv"] },
+
+  // Character Classes / Basics
+  { name: "Digits", pattern: "\\d+", desc: "Matches one or more digits", datasets: ["literal_characters", "character_classes", "logs", "csv", "kv"] },
+  { name: "Words", pattern: "\\w+", desc: "Matches word characters", datasets: ["literal_characters", "character_classes", "logs"] },
+  { name: "Whitespace", pattern: "\\s+", desc: "Matches whitespace", datasets: ["literal_characters", "character_classes"] },
+  { name: "Capitalized Words", pattern: "\\b[A-Z][a-z]*\\b", desc: "Matches Title Case", datasets: ["literal_characters", "character_classes"] },
+];
+
 
 
 function cn(...xs) {
@@ -162,6 +184,7 @@ export default function App() {
 
   const [liveMatches, setLiveMatches] = useState([]);
   const [liveError, setLiveError] = useState(null);
+  const [showPatterns, setShowPatterns] = useState(false);
 
 
   const previewRef = useRef(null);
@@ -285,7 +308,14 @@ export default function App() {
           <Card
             title="Controls"
             subtitle="Dataset, flags, pattern, text"
-            right={null}
+            right={
+              <button
+                onClick={() => setShowPatterns(true)}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+              >
+                Patterns
+              </button>
+            }
           >
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
@@ -476,9 +506,45 @@ export default function App() {
             </div>
           </Card>
         </div>
-
-
       </div>
+
+      {/* Modal Overlay */}
+      {showPatterns && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-900">Quick Patterns</h2>
+              <button
+                onClick={() => setShowPatterns(false)}
+                className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <XCircle size={20} />
+              </button>
+            </div>
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+              {PATTERNS
+                .filter(p => datasetKey === "custom" || p.datasets.includes(datasetKey))
+                .map((p, idx) => (
+                  <div key={idx} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-3">
+                    <div>
+                      <div className="text-sm font-medium text-slate-900">{p.name}</div>
+                      <div className="text-xs text-slate-500">{p.desc}</div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setPattern(p.pattern);
+                        setShowPatterns(false);
+                      }}
+                      className="ml-4 shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-600 shadow-sm hover:bg-indigo-50 hover:text-indigo-700"
+                    >
+                      Try it
+                    </button>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
