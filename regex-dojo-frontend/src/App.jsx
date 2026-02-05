@@ -33,68 +33,7 @@ TIMEOUT_MS=1500`,
   custom: "Enter your text here...",
 };
 
-const CHALLENGES = [
-  {
-    id: "c1",
-    name: "Match ERROR lines",
-    dataset: "logs",
-    mode: "match",
-    init: { pattern: "^ERROR.*$", flags: { MULTILINE: true }, replacement: "" },
-    hints: [
-      "Use ^ to anchor to the start of a line.",
-      "Enable MULTILINE so ^/$ apply per-line.",
-      "Try: ^ERROR.*$",
-    ],
-    check: (resp) => {
-      if (!resp?.ok) return { pass: false, msg: "Regex error." };
-      const ok = resp.matches?.length === 1 && resp.matches[0].match.startsWith("ERROR");
-      return ok
-        ? { pass: true, msg: "✅ Nice. Anchors + MULTILINE." }
-        : { pass: false, msg: "Need exactly the ERROR line match." };
-    },
-  },
-  {
-    id: "c2",
-    name: "Extract msg content",
-    dataset: "logs",
-    mode: "match",
-    init: { pattern: 'msg="([^"]*)"', flags: {}, replacement: "" },
-    hints: [
-      "Match msg=\"...\" and capture inside quotes.",
-      "Avoid .* inside quotes; use a negated class.",
-      'Try: msg="([^"]*)"',
-    ],
-    check: (resp) => {
-      if (!resp?.ok) return { pass: false, msg: "Regex error." };
-      // Note: Client-side match objects structure differs slightly, normalizing below
-      const groups = (resp.matches || []).map((m) => (m.groups && m.groups[0]) || "").filter(Boolean);
-      const ok = groups.includes("upstream timeout") && groups.includes("bad gateway");
-      return ok
-        ? { pass: true, msg: "✅ Good: captured quoted content safely." }
-        : { pass: false, msg: "Make sure group 1 is just the message text." };
-    },
-  },
-  {
-    id: "c3",
-    name: "Replace latency=123ms → latency_ms=123",
-    dataset: "logs",
-    mode: "replace",
-    init: { pattern: "latency=(\\d+)ms", flags: {}, replacement: "latency_ms=$1" },
-    hints: [
-      "Capture digits with (\\d+).",
-      "Use $1 in the replacement string (JS syntax).",
-      "Pattern: latency=(\\d+)ms, replacement: latency_ms=$1",
-    ],
-    check: (resp) => {
-      if (!resp?.ok) return { pass: false, msg: "Regex error." };
-      const out = resp.replaced_text || "";
-      const ok = out.includes("latency_ms=123") && !out.includes("latency=123ms");
-      return ok
-        ? { pass: true, msg: "✅ Great. Backreference replacement works." }
-        : { pass: false, msg: "Output should contain latency_ms=... and remove latency=...ms." };
-    },
-  },
-];
+
 
 function cn(...xs) {
   return xs.filter(Boolean).join(" ");
@@ -188,7 +127,6 @@ function TogglePill({ on, label, onClick }) {
 
 export default function App() {
   const [datasetKey, setDatasetKey] = useState("logs");
-  const [challengeId, setChallengeId] = useState("");
   const [mode, setMode] = useState("match");
   const [pattern, setPattern] = useState('msg="([^"]*)"');
   const [replacement, setReplacement] = useState("");
@@ -202,8 +140,7 @@ export default function App() {
 
   const [resp, setResp] = useState(null);
   const [selectedMatch, setSelectedMatch] = useState(-1);
-  const [attempts, setAttempts] = useState(0);
-  const [status, setStatus] = useState({ kind: "idle", msg: "Run to evaluate." });
+  const [status, setStatus] = useState({ kind: "idle", msg: "Ready." });
 
   const [liveMatches, setLiveMatches] = useState([]);
   const [liveError, setLiveError] = useState(null);
@@ -211,16 +148,6 @@ export default function App() {
 
   const previewRef = useRef(null);
 
-  const selectedChallenge = useMemo(
-    () => CHALLENGES.find((c) => c.id === challengeId) || null,
-    [challengeId]
-  );
-
-  const hint = useMemo(() => {
-    if (!selectedChallenge) return null;
-    const idx = Math.min(attempts, selectedChallenge.hints.length - 1);
-    return selectedChallenge.hints[idx];
-  }, [attempts, selectedChallenge]);
 
   const flagsArray = useMemo(() => Object.keys(flags).filter((k) => flags[k]), [flags]);
 
@@ -250,6 +177,15 @@ export default function App() {
     el.addEventListener("click", handler);
     return () => el.removeEventListener("click", handler);
   }, []);
+
+  function resetToDataset(key) {
+    setDatasetKey(key);
+    setText(DATASETS[key]);
+    setResp(null);
+    setSelectedMatch(-1);
+    setAttempts(0);
+    setStatus({ kind: "idle", msg: "Reset." });
+  }
 
   useEffect(() => {
     // Unified reactive logic
@@ -290,14 +226,7 @@ export default function App() {
       }
 
       setResp(out);
-
-      // Reactive challenge check
-      if (selectedChallenge) {
-        const r = selectedChallenge.check(out);
-        setStatus(r.pass ? { kind: "good", msg: r.msg } : { kind: "bad", msg: r.msg });
-      } else {
-        setStatus({ kind: "good", msg: "OK" });
-      }
+      setStatus({ kind: "good", msg: "OK" });
 
     } catch (err) {
       setLiveMatches([]);
@@ -305,25 +234,7 @@ export default function App() {
       setResp({ ok: false, error: err.message });
       setStatus({ kind: "bad", msg: err.message });
     }
-  }, [pattern, flags, text, mode, replacement, selectedChallenge]);
-
-
-  function applyChallenge(ch) {
-    setChallengeId(ch.id);
-    resetToDataset(ch.dataset);
-    setMode(ch.mode);
-    setPattern(ch.init.pattern);
-    setReplacement(ch.init.replacement || "");
-    setFlags((prev) => ({
-      ...prev,
-      IGNORECASE: !!ch.init.flags.IGNORECASE,
-      MULTILINE: !!ch.init.flags.MULTILINE,
-      DOTALL: !!ch.init.flags.DOTALL,
-      VERBOSE: !!ch.init.flags.VERBOSE,
-    }));
-    setAttempts(0);
-    setStatus({ kind: "idle", msg: "Challenge loaded." });
-  }
+  }, [pattern, flags, text, mode, replacement]);
 
   const warn = resp?.warn || [];
   const timeMs = resp?.time_ms; // Undefined now, which is fine
@@ -346,7 +257,7 @@ export default function App() {
               <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Regex Dojo</h1>
             </div>
             <p className="mt-2 text-sm text-slate-600">
-              Pretty regex playground for your lab.
+              Glad to be here!
             </p>
           </div>
         </div>
@@ -355,7 +266,7 @@ export default function App() {
           {/* Controls */}
           <Card
             title="Controls"
-            subtitle="Dataset, challenge, flags, pattern, text"
+            subtitle="Dataset, flags, pattern, text"
             right={null}
           >
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -367,34 +278,14 @@ export default function App() {
                   className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-200"
                 >
                   {Object.keys(DATASETS).map((k) => (
-                    <option key={k} value={k}>{k}</option>
+                    <option key={k} value={k}>
+                      {k === "custom" ? "custom (edited)" : k}
+                    </option>
                   ))}
                 </select>
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-slate-600">Challenge</label>
-                <select
-                  value={challengeId}
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    if (!id) {
-                      setChallengeId("");
-                      setAttempts(0);
-                      setStatus({ kind: "idle", msg: "No challenge selected." });
-                      return;
-                    }
-                    const ch = CHALLENGES.find((c) => c.id === id);
-                    if (ch) applyChallenge(ch);
-                  }}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-200"
-                >
-                  <option value="">(none)</option>
-                  {CHALLENGES.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
+
 
               <div>
                 <label className="text-xs font-semibold text-slate-600">Mode</label>
@@ -464,24 +355,22 @@ export default function App() {
                 <label className="text-xs font-semibold text-slate-600">Text</label>
                 <textarea
                   value={text}
-                  onChange={(e) => setText(e.target.value)}
+                  onChange={(e) => {
+                    setText(e.target.value);
+                    setDatasetKey("custom");
+                  }}
                   className="mt-1 h-64 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-sm leading-relaxed outline-none focus:ring-2 focus:ring-indigo-200"
                 />
               </div>
 
-              {selectedChallenge && hint && (
-                <div className="sm:col-span-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                  <div className="text-xs font-semibold text-slate-600">Hint</div>
-                  <div className="mt-1 text-sm text-slate-800">{hint}</div>
-                </div>
-              )}
+
             </div>
           </Card>
 
           {/* Output */}
           <Card
             title="Output"
-            subtitle="Preview, matches, and challenge status"
+            subtitle="Preview and matches"
             right={
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone={status.kind === "good" ? "good" : status.kind === "bad" ? "bad" : "slate"}>
@@ -570,9 +459,7 @@ export default function App() {
           </Card>
         </div>
 
-        <div className="mt-8 text-xs text-slate-500">
-          Tip: for a 30-minute talk, keep challenges to 6–10 and use hints as scaffolding.
-        </div>
+
       </div>
     </div>
   );
