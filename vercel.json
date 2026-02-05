@@ -1,0 +1,7 @@
+{
+    "buildCommand": "cd regex-dojo-frontend && npm run build",
+    "outputDirectory": "regex-dojo-frontend/dist",
+    "devCommand": "cd regex-dojo-frontend && npm run dev",
+    "installCommand": "cd regex-dojo-frontend && npm install",
+    "framework": "vite"
+}

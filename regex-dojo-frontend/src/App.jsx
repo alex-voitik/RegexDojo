@@ -276,7 +276,8 @@ export default function App() {
     setExplainError(null);
     setExplanation("");
     try {
-      const res = await fetch("http://localhost:3001/explain", {
+      const apiUrl = import.meta.env.VITE_API_URL || "/api";
+      const res = await fetch(`${apiUrl}/explain`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pattern }),
