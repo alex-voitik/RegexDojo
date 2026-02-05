@@ -17,20 +17,40 @@ import {
 // - No atomic groups, possessive quantifiers (unless using v flag, but we use standard flags)
 
 const DATASETS = {
-  logs: `2026-01-29T12:34:56Z service=api env=prod status=503 latency=123ms msg="upstream timeout"
+  literal_characters: {
+    label: "1. Literal Characters",
+    data: "cat, cAt, dog, DOG, mouse, Mouse, Mouse",
+  },
+  character_classes: {
+    label: "2. Character Classes",
+    data: "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789 !@#$%^&*()_+-=[]{}\\|;:'\",<.>/?`~"
+  },
+  logs: {
+    label: "Server Logs",
+    data: `2026-01-29T12:34:56Z service=api env=prod status=503 latency=123ms msg="upstream timeout"
 2026-01-29T12:35:02Z service=web env=prod status=200 latency=18ms msg="ok"
 2026-01-29T12:35:10Z service=api env=staging status=429 latency=95ms msg="rate limited"
 2026-01-29T12:35:11Z service=worker env=prod status=500 latency=2500ms msg="job failed id=9f1c"
 ERROR 2026-01-29T12:35:12Z service=api env=prod status=502 latency=532ms msg="bad gateway"`,
-  kv: `USER=alice
+  },
+  kv: {
+    label: "Key-Value Pairs",
+    data: `USER=alice
 ROLE=admin
 TOKEN="abc-123-xyz"
 TIMEOUT_MS=1500`,
-  csv: `id,email,amount
+  },
+  csv: {
+    label: "CSV Data",
+    data: `id,email,amount
 1,alex@example.com,12.50
 2,dev@corp.io,99.00
 3,test.user@sample.net,5.25`,
-  custom: "Enter your text here...",
+  },
+  custom: {
+    label: "Custom",
+    data: "Enter your text here...",
+  },
 };
 
 
@@ -126,17 +146,15 @@ function TogglePill({ on, label, onClick }) {
 }
 
 export default function App() {
-  const [datasetKey, setDatasetKey] = useState("logs");
+  const [datasetKey, setDatasetKey] = useState("Literal Characters");
   const [mode, setMode] = useState("match");
-  const [pattern, setPattern] = useState('msg="([^"]*)"');
+  const [pattern, setPattern] = useState('');
   const [replacement, setReplacement] = useState("");
   const [flags, setFlags] = useState({
     IGNORECASE: false,
-    MULTILINE: false,
-    DOTALL: false,
-    VERBOSE: false,
+    MULTILINE: false
   });
-  const [text, setText] = useState(DATASETS.logs);
+  const [text, setText] = useState(DATASETS.literal_characters.data);
 
   const [resp, setResp] = useState(null);
   const [selectedMatch, setSelectedMatch] = useState(-1);
@@ -180,7 +198,7 @@ export default function App() {
 
   function resetToDataset(key) {
     setDatasetKey(key);
-    setText(DATASETS[key]);
+    setText(DATASETS[key].data);
     setResp(null);
     setSelectedMatch(-1);
     setAttempts(0);
@@ -279,7 +297,7 @@ export default function App() {
                 >
                   {Object.keys(DATASETS).map((k) => (
                     <option key={k} value={k}>
-                      {k === "custom" ? "custom (edited)" : k}
+                      {k === "custom" && datasetKey === "custom" ? "Custom (Edited)" : DATASETS[k].label}
                     </option>
                   ))}
                 </select>
@@ -394,7 +412,7 @@ export default function App() {
                 <div className="text-xs font-semibold text-slate-600">Preview</div>
                 <div
                   ref={previewRef}
-                  className="mt-2 rounded-2xl border border-slate-200 bg-white/70 p-3 font-mono text-sm leading-relaxed text-slate-900 shadow-sm"
+                  className="mt-2 rounded-2xl border border-slate-200 bg-white/70 p-3 font-mono text-sm leading-relaxed text-slate-900 shadow-sm whitespace-pre-wrap break-all"
                   dangerouslySetInnerHTML={{
                     __html: mode === "replace" ? escapeHtml(text) : buildHighlightedHtml(text, matchesToDisplay, selectedMatch),
                   }}
@@ -407,7 +425,7 @@ export default function App() {
               {mode === "replace" && (
                 <div>
                   <div className="text-xs font-semibold text-slate-600">Replace output</div>
-                  <pre className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 font-mono text-sm leading-relaxed text-slate-900">
+                  <pre className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 font-mono text-sm leading-relaxed text-slate-900 whitespace-pre-wrap break-all">
                     {resp?.replaced_text || ""}
                   </pre>
                 </div>
