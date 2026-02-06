@@ -213,7 +213,7 @@ function TogglePill({ on, label, onClick }) {
 }
 
 export default function App() {
-  const [datasetKey, setDatasetKey] = useState("Literal Characters");
+  const [datasetKey, setDatasetKey] = useState("literal_characters");
   const [mode, setMode] = useState("match");
   const [pattern, setPattern] = useState('');
   const [replacement, setReplacement] = useState("");
