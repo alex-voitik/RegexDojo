@@ -102,7 +102,7 @@ const PATTERNS = [
   { name: "Date format", pattern: "((\\d{4})-(\\d{2})-(\\d{2}))", desc: "Matches YYYY-MM-DD model", datasets: ["grouping"] },
 
   // Grok vs Regex
-  { name: "Long regex", pattern: "(?<client_ip>\d{1,3}(\.\d{1,3}){3})\s+(?<method>\b\w+\b)\s+(?<request>/\S+)\s+(?<status>\d+)", desc: "Matches IP, method, request and status", datasets: ["grok"] },
+  { name: "Long regex", pattern: "(?<client_ip>\\d{1,3}(\\.\\d{1,3}){3})\\s+(?<method>\\b\\w+\\b)\\s+(?<request>/\\S+)\\s+(?<status>\\d+)", desc: "Matches IP, method, request and status", datasets: ["grok"] },
 
 
   // General / Common
