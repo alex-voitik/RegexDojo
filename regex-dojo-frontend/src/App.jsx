@@ -38,6 +38,10 @@ const DATASETS = {
     label: "5. Grouping",
     data: "12-30-2022 2022-30-12 cat dog animal pig GET POST PUT DELETE"
   },
+  grok: {
+    label: "6. Grok vs Regex",
+    data: "192.168.1.10 GET /api/v1/users 200"
+  },
   logs: {
     label: "Server Logs",
     data: `2026-01-29T12:34:56Z service=api env=prod status=503 latency=123ms msg="upstream timeout"
@@ -96,6 +100,9 @@ const PATTERNS = [
   // Grouping
   { name: "Grouped alternatives", pattern: "(cat|dog)", desc: "Matches 'cat' or 'dog'", datasets: ["grouping"] },
   { name: "Date format", pattern: "((\\d{4})-(\\d{2})-(\\d{2}))", desc: "Matches YYYY-MM-DD model", datasets: ["grouping"] },
+
+  // Grok vs Regex
+  { name: "Long regex", pattern: "(?<client_ip>\d{1,3}(\.\d{1,3}){3})\s+(?<method>\b\w+\b)\s+(?<request>/\S+)\s+(?<status>\d+)", desc: "Matches IP, method, request and status", datasets: ["grok"] },
 
 
   // General / Common
