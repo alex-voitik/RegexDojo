@@ -334,7 +334,8 @@ export default function App() {
         matches.push({
           span: [m.index, m.index + m[0].length],
           match: m[0],
-          groups: Array.from(m).slice(1)
+          groups: Array.from(m).slice(1),
+          namedGroups: m.groups || {}
         });
         if (matches.length >= 200) break;
       }
@@ -471,10 +472,11 @@ export default function App() {
 
               <div className="sm:col-span-2">
                 <label className="text-xs font-semibold text-slate-600">Pattern</label>
-                <input
+                <textarea
                   value={pattern}
                   onChange={(e) => setPattern(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-sm outline-none focus:ring-2 focus:ring-indigo-200"
+                  rows={1}
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-sm outline-none focus:ring-2 focus:ring-indigo-200 resize-none min-h-[42px]"
                 />
               </div>
 
@@ -611,7 +613,7 @@ export default function App() {
                     <div className="text-xs font-semibold text-slate-600">Selected match</div>
                     <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
                       {selectedMatch >= 0 && matchesToDisplay?.[selectedMatch] ? (
-                        <pre className="font-mono text-xs leading-relaxed text-slate-900">
+                        <pre className="font-mono text-xs leading-relaxed text-slate-900 whitespace-pre-wrap break-all">
                           {JSON.stringify(matchesToDisplay[selectedMatch], null, 2)}
                         </pre>
                       ) : (
